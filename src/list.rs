@@ -1,3 +1,4 @@
+use anyhow::{anyhow, bail};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::stream::{Stream, StreamExt};
@@ -7,7 +8,6 @@ use url::Url;
 use ya_client::web::WebClient;
 use yarapi::rest::{self, Proposal};
 
-use ya_agreement_utils::agreement::{expand, ProposalView};
 use ya_client_model::market::NewDemand;
 use ya_client_model::NodeId;
 
@@ -49,7 +49,7 @@ async fn list_nodes(
 
     Ok(subscription.proposals().map(|result| match result {
         Ok(proposal) => NodeInfo::try_from(proposal),
-        Err(e) => Err(e),
+        Err(e) => bail!("Query Events result: {}", e),
     }))
 }
 
@@ -79,12 +79,17 @@ impl TryFrom<Proposal> for NodeInfo {
     type Error = anyhow::Error;
 
     fn try_from(proposal: Proposal) -> Result<Self, Self::Error> {
-        let value = expand(serde_json::to_value(proposal.props())?);
-        let view = ProposalView::try_from(value)?;
+        log::trace!("Parsing proposal [{}]. {}", proposal.id(), proposal.props());
 
         Ok(NodeInfo {
-            id: view.issuer,
-            name: view.pointer_typed("/golem/node/id/name")?,
+            id: proposal.issuer_id(),
+            name: proposal
+                .props()
+                .pointer("/golem.node.id.name")
+                .ok_or(anyhow!("No key `golem.node.id.name`"))?
+                .as_str()
+                .ok_or(anyhow!("Node name not found"))?
+                .to_string(),
         })
     }
 }

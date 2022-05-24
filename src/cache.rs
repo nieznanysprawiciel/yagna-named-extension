@@ -16,6 +16,8 @@ impl Cache {
             nodes: HashMap::new(),
         };
 
+        log::info!("Cache file: {}", path.display());
+
         if path.exists() {
             cache
                 .load(path)
@@ -36,12 +38,15 @@ impl Cache {
         let mut updated: bool = false;
 
         for (id, name) in nodes_info {
-            if self.nodes.insert(id, name).is_some() {
+            if self.nodes.insert(id, name.clone()).is_none() {
+                log::debug!("Found new node {} [{}]", name, id);
                 updated = true;
             }
         }
 
         if updated {
+            log::info!("Saving new names to cache: {}", self.path.display());
+
             self.save()
                 .await
                 .map_err(|e| log::warn!("Failed to save updated nodes information to cache. {}", e))
@@ -50,9 +55,15 @@ impl Cache {
     }
 
     async fn save(&self) -> anyhow::Result<()> {
-        tokio::fs::create_dir_all(&self.path).await?;
+        tokio::fs::create_dir_all(
+            &self
+                .path
+                .parent()
+                .ok_or(anyhow!("Cache file has no parent dir"))?,
+        )
+        .await?;
 
-        let content = serde_json::to_string(&self.nodes)?;
+        let content = serde_json::to_string_pretty(&self.nodes)?;
         tokio::fs::write(&self.path, content.as_bytes()).await?;
         Ok(())
     }

@@ -46,9 +46,8 @@ struct Args {
 #[actix_rt::main]
 pub async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-
     let args = Args::parse();
-    //std::env::set_var("RUST_LOG", "info");
+
     env_logger::builder()
         .filter_module("yarapi::drop", log::LevelFilter::Off)
         .filter_module("ya_service_bus::connection", log::LevelFilter::Off)
