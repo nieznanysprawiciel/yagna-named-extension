@@ -1,0 +1,34 @@
+[package]
+name = "yagna-named"
+version = "0.1.0"
+authors = ["nieznany.sprawiciel <witek@golem.network>"]
+edition = "2021"
+description = "This extension for `yagna` tries to add node name to yagna command result where possible."
+
+
+[dependencies]
+ya-client = "0.5"
+ya-client-model = "0.3"
+ya-agreement-utils = { git = "https://github.com/nieznanysprawiciel/ya-negotiator", commit = "50d2e5bb44f747c32c42552aa7e12b6387be11e2" }
+yarapi = "0.4.1"
+
+actix-rt = "1.1.1"
+anyhow = "1.0"
+chrono = "0.4"
+clap = { version = "3.1", features = ["derive", "env"] }
+dotenv = "0.15"
+env_logger = "0.9"
+futures = "0.3"
+lazy_static = "1.4"
+log = "0.4"
+prettytable-rs = "0.8"
+serde = "1.0"
+serde_json = "1.0"
+serde_yaml = "0.8"
+sysinfo = "0.23"
+tokio = { version = "0.2.25", features = ["process"] }
+url = "2.2"
+
+[patch.crates-io]
+#yarapi = { git = "https://github.com/golemfactory/yarapi", branch = "experimental-features" }
+
