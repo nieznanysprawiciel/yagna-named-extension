@@ -1,7 +1,9 @@
 use anyhow::{anyhow, bail};
+use futures::{FutureExt, StreamExt};
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::time::Duration;
-use tokio::stream::{Stream, StreamExt};
+use tokio::stream::{Stream, StreamMap};
 use tokio::time::{timeout_at, Instant};
 use url::Url;
 
@@ -15,6 +17,8 @@ pub struct NodeInfo {
     pub id: NodeId,
     pub name: String,
 }
+
+pub type ListingStream = Pin<Box<dyn Stream<Item = anyhow::Result<NodeInfo>>>>;
 
 pub fn create_demand(subnet: &str) -> NewDemand {
     log::info!("Using subnet: {}", subnet);
@@ -33,7 +37,7 @@ pub fn create_demand(subnet: &str) -> NewDemand {
     }
 }
 
-async fn list_nodes(
+async fn list_nodes_stream(
     _server_api_url: Url,
     appkey: &str,
     subnet: &str,
@@ -53,6 +57,34 @@ async fn list_nodes(
     }))
 }
 
+async fn listing_streams(server_api_url: Url, appkey: &str) -> anyhow::Result<Vec<ListingStream>> {
+    let subnets = vec!["hybrid", "devnet-beta", "public-beta"];
+    let futures = subnets
+        .iter()
+        .map(|subnet| {
+            list_nodes_stream(server_api_url.clone(), appkey, subnet).map(
+                move |result| match result {
+                    Ok(stream) => Ok(stream.boxed_local()),
+                    Err(e) => {
+                        log::warn!(
+                            "Failed to create stream for subnet: {}. Error: {}. Ignoring",
+                            subnet,
+                            e
+                        );
+                        Err(e)
+                    }
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+
+    Ok(futures::future::join_all(futures)
+        .await
+        .into_iter()
+        .filter_map(|result| result.ok())
+        .collect::<Vec<_>>())
+}
+
 pub async fn collect_for(
     server_api_url: Url,
     appkey: &str,
@@ -61,9 +93,14 @@ pub async fn collect_for(
     let mut collection = HashMap::new();
     let stop = Instant::now() + timeout;
 
-    let mut stream = Box::pin(list_nodes(server_api_url, appkey, "hybrid").await?);
+    let streams = listing_streams(server_api_url, appkey).await?;
+    let mut streams_map = StreamMap::new();
 
-    while let Ok(Some(result)) = timeout_at(stop, stream.next()).await {
+    streams.into_iter().enumerate().for_each(|(i, stream)| {
+        streams_map.insert(i.to_string(), stream);
+    });
+
+    while let Ok(Some((_, result))) = timeout_at(stop, streams_map.next()).await {
         match result {
             Ok(node) => {
                 collection.insert(node.id, node.name);
