@@ -16,7 +16,7 @@ running with extension:
 
 ## How it works?
 
-`yagna-named` subscribes `Demand` on market to get Offers from Providers. `Offer` contains `` field, which will be used by extension as Node name.
+`yagna-named` subscribes `Demand` on market to get Offers from Providers. `Offer` contains `nodeID` field, which will be used by extension as Node name.
 Node names are cached on disk and later used when running commands, so we don't query market each time, we execute a command.
 
 
