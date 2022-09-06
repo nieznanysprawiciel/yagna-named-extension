@@ -58,7 +58,13 @@ async fn list_nodes_stream(
 }
 
 async fn listing_streams(server_api_url: Url, appkey: &str) -> anyhow::Result<Vec<ListingStream>> {
-    let subnets = vec!["hybrid", "devnet-beta", "public-beta"];
+    let subnets = vec![
+        "hybrid",
+        "devnet-beta",
+        "public-beta",
+        "hybrid-mainnet",
+        "testnet",
+    ];
     let futures = subnets
         .iter()
         .map(|subnet| {

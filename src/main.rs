@@ -119,6 +119,7 @@ fn process_row2(row: &mut Value, cache: &Cache) -> anyhow::Result<()> {
 
     let name = match row
         .get("nodeId")
+        .or(row.get("node"))
         .map(|id| id.as_str().map(|id| NodeId::from_str(id)))
     {
         Some(Some(Ok(node_id))) => match cache.node_name(node_id) {
